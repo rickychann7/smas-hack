@@ -2,6 +2,58 @@
 
 table table.txt
 
+;smb1 code
+gameplay_hijack_smb1:
+		lda !menu_closing
+		bne .do_close_menu
+		lda !menu_flag
+		bne .do_menu
+
+		; check level reset (L+R)
+		lda !axlr
+		and #%00110000
+		cmp #%00110000
+		bne +
+		; die instantly
+		lda #$49
+		sta $BB
+		; fix 21 frame rule
+		lda #20
+		sta $0787
+		bra .exit_normal
+	+
+
+		; check menu open (R + start)
+		lda !axlr
+		and #%00010000
+		beq .exit_normal
+		lda !byetudlr_1f
+		and #%00010000
+		beq .exit_normal
+
+		jsr hud_menu_init
+		bra .exit_frozen
+
+	.do_close_menu:
+		dec !menu_closing
+		bra .exit_frozen
+
+	.do_menu:
+		phb
+		phk
+		plb
+		jsr hud_menu
+		plb
+
+	.exit_frozen:
+		jml $0382D4
+
+	.exit_normal:
+		lda $0776
+		lsr
+		jml $03826D
+
+;smb2j code
 gameplay_hijack:
 		lda !menu_closing
 		bne .do_close_menu
@@ -431,11 +483,25 @@ warp:
 		asl
 		adc $075C
 		tax
-		lda .sublevels,x
+        lda $7FFF00
+        cmp #$04
+        BEQ .skipsmb1
+        lda .SMB1sublevels,x
+        BRA .skip
+        .skipsmb1:
+		lda .SMB2sublevels,x
+        .skip:
 		sta $0760
 		; internal area id and map type handler
-		jsl $0EC34C
+        lda $7FFF00
+        cmp #$04
+        BEQ .smb2handler
+        jsl $04C00B
+        bra .continue
+        .smb2handler:
+		    jsl $0EC34C
 		
+        .continue:
 		; warp away
 		stz $0772
 		stz !menu_flag
@@ -490,7 +556,22 @@ warp:
 	.props:
 		db "bbbbbbbblllbbbbbbbbbbb"
 
-	.sublevels:
+	.SMB1sublevels:
+		db $00,$02,$03,$04 ; w1
+		db $00,$02,$03,$04 ; w2
+		db $00,$01,$02,$03 ; w3
+		db $00,$02,$03,$04 ; w4
+		db $00,$01,$02,$03 ; w5
+		db $00,$01,$02,$03 ; w6
+		db $00,$01,$02,$04 ; w7
+		db $00,$01,$02,$03 ; w8
+		db $00,$01,$02,$03 ; w9
+		db $00,$02,$03,$04 ; wA
+		db $00,$02,$03,$04 ; wB
+		db $00,$01,$02,$03 ; wC
+		db $00,$01,$02,$03 ; wD
+
+	.SMB2sublevels:
 		db $00,$02,$03,$04 ; w1
 		db $00,$01,$02,$03 ; w2
 		db $00,$02,$03,$04 ; w3
